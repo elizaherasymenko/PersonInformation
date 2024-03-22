@@ -1,14 +1,38 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Xml.Linq;
 
 namespace ProceedUserInfo
 {
+
+    class FutureDateException : Exception
+    {
+        public FutureDateException() { }
+        public FutureDateException(DateTime date)
+        : base(String.Format("Invalid Date in the future: {0}", date)) { }
+    }
+
+    class DeadPersonException : Exception
+    {
+        public DeadPersonException() { }
+        public DeadPersonException(string name, int age)
+        : base(String.Format("Statistically {0} cannot be alive in age {1}", name, age)) { }
+    }
+    class BadEmailException : Exception
+    {
+        public BadEmailException() { }
+
+        public BadEmailException(string email)
+            : base(String.Format("Incorrect email input: {0}", email)) { }
+    }
     class Person
     {
         public string _name { get; }
@@ -24,10 +48,13 @@ namespace ProceedUserInfo
 
         public Person(string name, string surname, string email, DateTime birthDate)
         {
+
             _name = name;
             _surname = surname;
             _email = email;
             _birthDate = birthDate;
+
+
         }
 
         public Person(string name, string surname, string email)
@@ -45,41 +72,77 @@ namespace ProceedUserInfo
             _email = string.Empty;
             _birthDate = birthDate;
         }
+        private bool validateEmail()
+        {
+            try
+            {
+                CheckEmail(_email);
 
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
+            return true;
+        }
+
+        private void CheckEmail(string email)
+        {
+            string regex = @"^[^@\s]+@[^@\s]+\.(com|net|ua)$";
+            if (!Regex.IsMatch(email, regex, RegexOptions.IgnoreCase))
+                throw new BadEmailException(_email);
+        }
 
 
         private bool CalculateIsAdult()
         {
             DateTime dateNow = DateTime.Today;
             DateTime selectedDate = _birthDate;
-            if (dateNow < selectedDate)
+            try
             {
-                MessageBox.Show("Invalid selected date.");
-                return false;
-            }
-            else
-            {
+                checkDate(selectedDate);
                 int age = new DateTime(dateNow.Subtract((System.DateTime)selectedDate).Ticks).Year - 1;
-                if (age <= 135)
+                try
                 {
+                    checkAge(_name, age);
                     if (age >= 18)
                     {
                         return true;
                     }
                     return false;
-                } else
+                }
+                catch (DeadPersonException ex)
                 {
-
-                    MessageBox.Show("Are you still alive?");
+                    MessageBox.Show(ex.Message);
+                    Environment.Exit(1);
                     return false;
                 }
             }
+            catch (FutureDateException ex)
+            {
+                MessageBox.Show(ex.Message);
+                Environment.Exit(1);
+                return false;
+            }
 
+        }
 
+        private void checkAge(string name, int age)
+        {
+            if (age >= 135)
+                throw new DeadPersonException(name, age);
+        }
+
+        private void checkDate(DateTime selectedDate)
+        {
+            if (DateTime.Today < selectedDate)
+                throw new FutureDateException(selectedDate);
         }
 
         private string CalculateSunSign()
         {
+            try
+            {
+                validateEmail();
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message); }
             int month = _birthDate.Month;
             int day = _birthDate.Day;
             switch (month)
@@ -195,8 +258,6 @@ namespace ProceedUserInfo
             }
             return "Not detected";
         }
-
-
 
         private string CalculateChineseSign()
         {
